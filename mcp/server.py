@@ -131,7 +131,6 @@ async def mongo_query(
     raise ValueError("Unsupported operation")
 
 @mcp.tool()
-@mcp.tool()
 async def mongo_fuzzy_search(query: str, limit: int = 10):
     """
     Perform a typo-tolerant fuzzy search on the recipes collection using MongoDB Atlas Search.
