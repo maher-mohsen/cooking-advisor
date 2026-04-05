@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 import os
-
+import ollama
 import certifi
 from dotenv import load_dotenv
 from pymongo import MongoClient
@@ -54,7 +54,13 @@ async def validate_query_spec(query: Dict[str, Any]) -> None:
 
     if await contains_banned_operator(query):
         raise ValueError("Query contains banned operator ($where / $function)")
-    
+
+async def embed(text):
+    return ollama.embed(
+    model='bge-m3',
+    input=text,
+    dimensions=1024
+).embeddings[0]
 @mcp.tool()
 async def mongo_query(
     collection: str,
@@ -212,5 +218,74 @@ async def mongo_fuzzy_search(query: str, limit: int = 10):
 
     return results
 
+@mcp.tool()
+async def mongo_vector_search(
+    query: str,
+    limit: int = 10,
+    num_candidates: int = 3000
+) -> List[Dict[str, Any]]:
+    """
+    Perform a vector similarity search on the recipes collection using MongoDB Atlas Vector Search.
+
+    This tool finds the most similar recipes based on their embedding vectors.
+    It uses a vector index (e.g., 'recipe_embedding_index') and cosine similarity by default.
+
+    Args:
+        query_vector (List[float]): The embedding vector of the query. Must match the dimension of stored embeddings.
+        limit (int, optional): Maximum number of results to return. Defaults to 10.
+        num_candidates (int, optional): Number of candidates to consider in the search for performance tuning. Defaults to 200.
+
+    Returns:
+        List[Dict[str, Any]]: A list of recipe documents sorted by similarity.
+        Each document contains:
+            - _id (str): MongoDB ObjectId as a string.
+            - title (str): Recipe title.
+            - ingredients (List[str]): List of ingredients.
+            - directions (List[str]): Recipe steps.
+            - NER (List[str]): Key terms from ingredients.
+            - link (str): Recipe source link.
+            - source (str): Source name.
+            - score (float): Similarity score (higher = more similar).
+
+    Notes:
+        - Requires a vector index named 'recipe_embedding_index' on the 'embedding' field.
+        - The query vector dimension must exactly match the stored embedding dimension.
+        - Embedding vectors are excluded from the returned documents for efficiency.
+    """
+    query_vector = await embed(query)
+    query_vector = [float(x) for x in query_vector]  # Ensure it's a list of floats
+   
+    if len(query_vector) != 1024:
+        raise ValueError("Query vector dimension mismatch!")
+    pipeline = [
+        {
+            "$vectorSearch": {
+                "index": "vector_index",
+                "queryVector": query_vector,
+                "path": "embedding",
+                "numCandidates": num_candidates,
+                "limit": limit
+            }
+        },
+        {
+            "$project": {
+                "title": 1,
+                "ingredients": 1,
+                "directions": 1,
+                "NER": 1,
+                "link": 1,
+                "source": 1,
+                "score": {"$meta": "vectorSearchScore"}
+            }
+        }
+    ]
+
+    results = list(collection.aggregate(pipeline))
+
+    # Convert ObjectId to string
+    for doc in results:
+        doc["_id"] = str(doc["_id"])
+    
+    return results
 if __name__ == "__main__":
     mcp.run()
