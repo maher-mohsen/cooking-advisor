@@ -2,6 +2,14 @@
 
 Cooking Advisor is an AI-powered conversational assistant that combines the reasoning capabilities of Anthropic's Claude with structured, vector, and fuzzy search tools via MongoDB Atlas. It runs using the Model Context Protocol (MCP) to cleanly separate generative logic from database operations.
 
+## Screenshots
+
+<div align="center">
+  <img src="docs/demo1.jpg" alt="Demo UI 1 - Streamlit App" width="80%" style="margin-bottom: 20px;" /><br>
+  <img src="docs/demo2.jpg" alt="Demo UI 2 - MCP Tool Calling" width="80%" style="margin-bottom: 20px;" /><br>
+  <img src="docs/demo3.jpg" alt="Demo UI 3 - Eposidic Memory" width="80%" style="margin-bottom: 20px;" />
+</div>
+
 ## Prerequisites
 
 Before running the application, you **must** have the following installed and configured:
